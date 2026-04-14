@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Experience Design — Knowledge Base</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ══════════════════════════════════════════════
+   MOBILE-FIRST Design System
+   Base = mobile. Desktop added via min-width.
+   ══════════════════════════════════════════════ */
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #1f2937;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --sidebar-w: 280px;
+  --header-h: 52px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); font-size: 16px; line-height: 1.6; color: var(--text); background: var(--bg); -webkit-text-size-adjust: 100%; }
+
+/* ── Header (mobile base) ───────────────────── */
+#header {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--header-h); background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 10px; gap: 8px; z-index: 100;
+}
+#header h1 { font-size: 14px; font-weight: 600; white-space: nowrap; display: none; }
+#header h1 span { color: var(--text-muted); font-weight: 400; }
+#search-box {
+  width: 100%; min-width: 0;
+  padding: 7px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 14px; font-family: var(--font);
+  outline: none; background: var(--bg);
+}
+#search-box:focus { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124,58,237,0.15); }
+
+/* Search dropdown */
+#search-dropdown {
+  display: none; position: absolute; top: 100%; left: 0; right: 0;
+  margin-top: 4px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  max-height: 400px; overflow-y: auto; z-index: 200;
+}
+.sd-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; cursor: pointer; font-size: 13px;
+  -webkit-tap-highlight-color: transparent;
+}
+.sd-item:hover, .sd-item.sd-active { background: var(--bg); }
+.sd-item .sr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sd-item .sr-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-item .sr-title strong { color: #7c3aed; }
+.sd-item .sr-layer { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.sd-item .entry-link-ev { flex-shrink: 0; }
+.sd-empty { padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); }
+.sd-more { padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border); }
+.view-toggle {
+  display: flex; gap: 1px; background: var(--bg);
+  border-radius: 6px; padding: 2px; flex-shrink: 0;
+}
+.view-toggle button {
+  padding: 5px 8px; border: none; background: transparent;
+  border-radius: 4px; cursor: pointer; font-size: 12px;
+  font-family: var(--font); color: var(--text-secondary);
+}
+.view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+#sidebar-toggle { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); flex-shrink: 0; padding: 4px; }
+
+/* ── Sidebar (mobile: off-canvas overlay) ───── */
+#sidebar {
+  position: fixed; top: var(--header-h); left: 0; bottom: 0;
+  width: min(var(--sidebar-w), 85vw);
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 8px 0; z-index: 90;
+  transform: translateX(-100%); transition: transform 0.2s ease;
+}
+#sidebar.open { transform: translateX(0); }
+#sidebar-overlay {
+  display: none; position: fixed; inset: 0; top: var(--header-h);
+  background: rgba(0,0,0,0.3); z-index: 85;
+}
+#sidebar-overlay.open { display: block; }
+
+.layer-group { margin-bottom: 2px; }
+.layer-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  color: var(--text); user-select: none;
+  border-left: 3px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.layer-header:hover { background: var(--bg); }
+.layer-header .arrow { font-size: 10px; transition: transform 0.15s; color: var(--text-muted); width: 12px; }
+.layer-header.open .arrow { transform: rotate(90deg); }
+.layer-header .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.layer-header .count { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--text-muted); }
+
+.layer-entries { display: none; }
+.layer-entries.open { display: block; }
+
+.sub-group { margin: 0; }
+.sub-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px 6px 24px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary); user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.sub-header:hover { background: var(--bg); }
+.sub-header .arrow { font-size: 9px; transition: transform 0.15s; color: var(--text-muted); width: 10px; }
+.sub-header.open .arrow { transform: rotate(90deg); }
+.sub-header .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sub-header .count { margin-left: auto; font-size: 10px; font-weight: 400; color: var(--text-muted); }
+.sub-entries { display: none; }
+.sub-entries.open { display: block; }
+.sub-entries .entry-link { padding-left: 44px; }
+
+.entry-link {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 10px 6px 33px;
+  font-size: 14px; color: var(--text-secondary);
+  text-decoration: none; cursor: pointer;
+  border-left: 3px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.entry-link-title {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.entry-link-ev {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0; opacity: 0.7;
+}
+.entry-link:hover { background: var(--bg); color: var(--text); }
+.entry-link:hover .entry-link-ev { opacity: 1; }
+.entry-link.active { background: #f3f0ff; color: #7c3aed; border-left-color: #7c3aed; font-weight: 500; }
+
+/* Sidebar evidence legend */
+.sidebar-legend {
+  margin-top: 12px; padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-legend-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px;
+}
+.sidebar-legend-items {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  font-size: 11px; color: var(--text-secondary);
+}
+.sidebar-legend-items span {
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* ── Main (mobile: full width) ──────────────── */
+#main {
+  margin-top: var(--header-h);
+  min-height: calc(100vh - var(--header-h));
+}
+
+/* ── Reader ─────────────────────────────────── */
+#reader { max-width: 780px; margin: 0 auto; padding: 20px 16px 48px; }
+
+#welcome { text-align: center; padding: 48px 16px; color: var(--text-secondary); }
+#welcome h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+#welcome p { font-size: 14px; max-width: 480px; margin: 0 auto 20px; }
+#welcome .stat { font-size: 40px; font-weight: 700; color: var(--text); }
+#welcome .stat-label { font-size: 12px; color: var(--text-muted); }
+
+.entry-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; align-items: center; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.badge-layer { color: white; }
+.badge-evidence { background: transparent; border: 1.5px solid; }
+.badge-status { background: var(--bg); color: var(--text-secondary); font-weight: 400; }
+
+.entry-content h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; line-height: 1.2; }
+.entry-content h2 { font-size: 18px; font-weight: 600; margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.entry-content h3 { font-size: 15px; font-weight: 600; margin: 18px 0 8px; }
+.entry-content p { margin-bottom: 12px; }
+.entry-content ul, .entry-content ol { margin: 0 0 12px 20px; }
+.entry-content li { margin-bottom: 4px; }
+.entry-content table { width: 100%; border-collapse: collapse; margin: 12px 0 16px; font-size: 13px; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.entry-content th { text-align: left; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); font-weight: 600; font-size: 12px; white-space: nowrap; }
+.entry-content td { padding: 5px 8px; border: 1px solid var(--border); vertical-align: top; }
+.entry-content code { font-family: var(--font-mono); font-size: 0.85em; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; word-break: break-word; }
+.entry-content pre { background: #1f2937; color: #e5e7eb; padding: 14px; border-radius: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 12px 0 16px; font-size: 13px; }
+.entry-content pre code { background: none; padding: 0; color: inherit; }
+.entry-content blockquote { border-left: 3px solid var(--border); padding-left: 14px; color: var(--text-secondary); margin: 12px 0; font-style: italic; }
+.entry-content strong { font-weight: 600; }
+.entry-content a { color: #7c3aed; text-decoration: none; }
+.entry-content a:hover { text-decoration: underline; }
+.entry-content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+.related-section { margin-top: 28px; padding-top: 16px; border-top: 2px solid var(--border); }
+.related-section h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.related-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.related-chip {
+  display: inline-block; padding: 5px 10px;
+  border-radius: 14px; font-size: 12px;
+  cursor: pointer; text-decoration: none;
+  transition: opacity 0.1s; color: white; font-weight: 500;
+}
+.related-chip:hover { opacity: 0.85; }
+
+/* ── Graph ──────────────────────────────────── */
+#graph-container { display: none; position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0; }
+#graph-container svg { width: 100%; height: 100%; }
+#graph-container .node { cursor: pointer; }
+#graph-container .node circle { stroke: white; stroke-width: 1.5; }
+#graph-container .link { stroke: #d1d5db; stroke-opacity: 0.4; }
+#graph-container .node.dimmed circle { opacity: 0.08; }
+#graph-container .node.dimmed text { opacity: 0.05; }
+#graph-container .link.dimmed { stroke-opacity: 0.03; }
+#graph-container .node.highlighted circle { stroke: #1f2937; stroke-width: 2.5; }
+#graph-container .node text { font-size: 9px; fill: var(--text-secondary); pointer-events: none; text-anchor: middle; }
+
+#graph-controls {
+  position: absolute; top: 8px; left: 8px; right: 8px;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start;
+  z-index: 10; pointer-events: none;
+}
+#graph-controls > * { pointer-events: auto; }
+#graph-legend {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  background: rgba(255,255,255,0.94); padding: 5px 8px;
+  border-radius: 6px; border: 1px solid var(--border);
+  max-width: 100%;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--text-secondary);
+  cursor: pointer; padding: 2px 4px; border-radius: 3px; user-select: none;
+}
+.legend-item:hover { background: var(--bg); }
+.legend-item.dimmed { opacity: 0.3; }
+.legend-item .ldot { width: 7px; height: 7px; border-radius: 50%; }
+#graph-info {
+  background: rgba(255,255,255,0.94); padding: 4px 8px;
+  border-radius: 6px; border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted);
+}
+
+/* Tooltip (hidden on touch by default) */
+#tooltip {
+  position: fixed; padding: 8px 12px; background: #1f2937; color: white;
+  border-radius: 6px; font-size: 12px; line-height: 1.5;
+  pointer-events: none; display: none; z-index: 200; max-width: min(380px, 90vw);
+}
+
+/* ── Search Results ─────────────────────────── */
+#search-results { display: none; padding: 16px; max-width: 780px; margin: 0 auto; }
+#search-results h2 { font-size: 16px; margin-bottom: 12px; }
+.search-result {
+  padding: 10px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 2px;
+  display: flex; align-items: center; gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.search-result:hover { background: var(--bg); }
+.search-result .sr-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.search-result .sr-title { font-size: 14px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-result .sr-layer { font-size: 11px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+
+/* ── Loading ────────────────────────────────── */
+#loading { display: flex; align-items: center; justify-content: center; height: calc(100vh - var(--header-h)); color: var(--text-muted); font-size: 14px; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Stats ──────────────────────────────────── */
+#stats-container { max-width: 900px; margin: 0 auto; padding: 20px 16px 48px; }
+.stats-header { margin-bottom: 24px; }
+.stats-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.stats-header p { font-size: 13px; color: var(--text-secondary); }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+.stat-card .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.stats-section { margin-bottom: 24px; }
+.stats-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text); padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+.bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; font-size: 12px; }
+.bar-label { width: 100px; text-align: right; color: var(--text-secondary); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.bar-track { flex: 1; height: 18px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; display: flex; align-items: center; padding-left: 5px; font-size: 10px; color: white; font-weight: 600; }
+.bar-count { width: 30px; text-align: right; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+.stats-two-col { display: block; }
+.hub-list { list-style: none; }
+.hub-list li { padding: 6px 8px; border-radius: 4px; display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hub-list li:hover { background: var(--bg); }
+.hub-list .hub-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.hub-list .hub-count { margin-left: auto; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+/* ══════════════════════════════════════════════
+   DESKTOP (min-width: 768px)
+   ══════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  :root { --header-h: 56px; }
+
+  #header { padding: 0 16px; gap: 12px; }
+  #header h1 { display: block; font-size: 15px; }
+  #sidebar-toggle { display: none; }
+
+  #sidebar { transform: translateX(0); width: var(--sidebar-w); }
+  #sidebar-overlay { display: none !important; }
+
+  #main { margin-left: var(--sidebar-w); }
+  #graph-container { left: var(--sidebar-w); }
+
+  #reader { padding: 32px 24px 64px; }
+  #welcome { padding: 80px 24px; }
+  #welcome h2 { font-size: 24px; }
+  #welcome .stat { font-size: 48px; }
+
+  .entry-content h1 { font-size: 28px; }
+  .entry-content h2 { font-size: 20px; }
+  .entry-content table { display: table; }
+
+  .entry-link { padding: 3px 12px 3px 33px; font-size: 13px; }
+  .layer-header { padding: 6px 12px; }
+  .sub-header { padding: 4px 12px 4px 24px; }
+
+  #search-results { padding: 24px; }
+  #search-results h2 { font-size: 18px; }
+
+  #stats-container { padding: 32px 24px 64px; }
+  .stats-header h2 { font-size: 24px; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat-card .stat-value { font-size: 32px; }
+  .stat-card { padding: 16px; }
+
+  .bar-label { width: 160px; font-size: 13px; }
+  .bar-row { font-size: 13px; gap: 8px; }
+  .bar-fill { font-size: 11px; }
+
+  .stats-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .view-toggle button { padding: 5px 12px; font-size: 13px; }
+
+  #graph-controls { top: 12px; left: 12px; right: 12px; }
+  .legend-item { font-size: 11px; padding: 2px 6px; }
+  #graph-info { margin-left: auto; }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+  :root { --sidebar-w: 300px; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 onclick="window.location.hash='';showView('stats')" style="cursor:pointer">LXD Knowledge Base <span id="entry-count"></span></h1>
+  <div style="position:relative;flex:1;max-width:400px">
+    <input type="text" id="search-box" placeholder="Search entries..." oninput="onSearch(this.value)" autocomplete="off">
+    <div id="search-dropdown"></div>
+  </div>
+  <div class="view-toggle">
+    <button id="btn-reader" class="active" onclick="showView('reader')">Reader</button>
+    <button id="btn-graph" onclick="showView('graph')">Graph</button>
+    <button id="btn-stats" onclick="showView('stats')">Stats</button>
+  </div>
+</div>
+
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div id="sidebar"></div>
+
+<div id="main">
+  <div id="loading"><div class="spinner"></div>Loading knowledge base...</div>
+  <div id="reader" style="display:none">
+    <div id="welcome">
+      <div class="stat" id="stat-count">—</div>
+      <div class="stat-label">entries across 7 layers</div>
+      <h2 style="margin-top:24px">Learning Experience Design</h2>
+      <p>Select an entry from the sidebar, use search, or switch to the graph view to explore relationships.</p>
+    </div>
+    <div id="entry-view" style="display:none"></div>
+  </div>
+  <div id="search-results"></div>
+  <div id="graph-container">
+    <div id="graph-controls">
+      <div id="graph-legend"></div>
+      <div id="graph-filters"></div>
+      <div id="graph-info">Click a node to read it. Click background to deselect.</div>
+    </div>
+    <svg></svg>
+  </div>
+  <div id="stats-container" style="display:none"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   Knowledge Base Viewer — JavaScript
+   ══════════════════════════════════════════════ */
+
+// ── Layer configuration ────────────────────────
+// Top-level nav items (techniques is a parent group with children)
+const NAV_TREE = [
+  { key: 'foundations', label: 'Foundations', color: '#1e40af' },
+  { key: 'principles', label: 'Principles', color: '#7c3aed' },
+  { key: 'techniques', label: 'Techniques', color: '#059669', children: [
+    { key: 'techniques/writing',       label: 'Writing',       color: '#059669' },
+    { key: 'techniques/visual',        label: 'Visual',        color: '#d97706' },
+    { key: 'techniques/narrative',     label: 'Narrative',     color: '#e11d48' },
+    { key: 'techniques/instructional', label: 'Instructional', color: '#0d9488' },
+    { key: 'techniques/interaction',   label: 'Interaction',   color: '#4f46e5' },
+  ]},
+  { key: 'methods', label: 'Methods & Workflows', color: '#b45309' },
+  { key: 'systems', label: 'Systems & Tools', color: '#475569' },
+  { key: 'patterns', label: 'Design Patterns', color: '#0891b2' },
+  { key: 'strategy', label: 'Strategy & Intelligence', color: '#a21caf' },
+];
+
+// Flat lookup for layer → color/label (used by badges, graph, etc.)
+const LAYERS = {};
+NAV_TREE.forEach(item => {
+  if (item.children) {
+    item.children.forEach(child => {
+      LAYERS[child.key] = { label: child.label, color: child.color, parent: item.key };
+    });
+  } else {
+    LAYERS[item.key] = { label: item.label, color: item.color };
+  }
+});
+
+const EVIDENCE_COLORS = {
+  'empirical': '#059669', 'mixed': '#7c3aed',
+  'theoretical': '#d97706', 'practitioner': '#6b7280'
+};
+
+// ── State ──────────────────────────────────────
+let entries = {};       // slug → entry object
+let entryList = [];     // array of all entries
+let currentSlug = null;
+let graphBuilt = false;
+
+// ── YAML Frontmatter Parser ────────────────────
+function parseFrontmatter(text) {
+  const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) return { meta: {}, body: text };
+  const yaml = match[1];
+  const body = match[2];
+  const meta = {};
+  yaml.split('\n').forEach(line => {
+    const kv = line.match(/^(\w[\w_]*)\s*:\s*(.*)$/);
+    if (!kv) return;
+    let [, key, val] = kv;
+    val = val.trim();
+    if (val.startsWith('[')) {
+      val = val.slice(1, -1).split(',')
+        .map(s => s.trim().replace(/^["']|["']$/g, ''))
+        .filter(s => s.length > 0);
+    } else if (val === '' || val === 'null') {
+      val = null;
+    } else {
+      val = val.replace(/^["']|["']$/g, '');
+    }
+    meta[key] = val;
+  });
+  return { meta, body };
+}
+
+// ── File Discovery & Loading ───────────────────
+async function discoverEntries() {
+  const resp = await fetch('_index.md');
+  const text = await resp.text();
+  const links = [...text.matchAll(/\]\(([^)]+\.md)\)/g)];
+  const paths = links.map(m => m[1]).filter(p => !p.startsWith('http') && !p.startsWith('#'));
+  return [...new Set(paths)];
+}
+
+async function loadEntry(path) {
+  try {
+    const resp = await fetch(path);
+    if (!resp.ok) return null;
+    const text = await resp.text();
+    const { meta, body } = parseFrontmatter(text);
+    if (!meta.slug) return null;
+    const layer = meta.layer || path.split('/').slice(0, -1).join('/');
+    return { ...meta, layer, body, path };
+  } catch { return null; }
+}
+
+async function loadAllEntries() {
+  const paths = await discoverEntries();
+  const results = await Promise.all(paths.map(p => loadEntry(p)));
+  results.forEach(e => {
+    if (e && e.slug) {
+      entries[e.slug] = e;
+      entryList.push(e);
+    }
+  });
+}
+
+// ── Layer Color Helper ─────────────────────────
+function layerColor(layer) {
+  return LAYERS[layer]?.color || '#6b7280';
+}
+
+function layerLabel(layer) {
+  if (LAYERS[layer]) {
+    const l = LAYERS[layer];
+    return l.parent ? `Techniques / ${l.label}` : l.label;
+  }
+  return layer;
+}
+
+// ── Sidebar Builder ────────────────────────────
+function buildSidebar() {
+  // Group entries by layer key
+  const groups = {};
+  entryList.forEach(e => {
+    const l = e.layer;
+    if (!groups[l]) groups[l] = [];
+    groups[l].push(e);
+  });
+  // Sort entries within each group
+  Object.values(groups).forEach(arr => arr.sort((a, b) => (a.title || '').localeCompare(b.title || '')));
+
+  function renderEntryLinks(items) {
+    return items.map(e => {
+      const evColor = EVIDENCE_COLORS[e.evidence_level] || 'transparent';
+      return `<a class="entry-link" data-slug="${e.slug}" onclick="navigate('${e.slug}')">
+        <span class="entry-link-title">${e.title}</span>
+        <span class="entry-link-ev" style="background:${evColor}" title="${e.evidence_level || ''}"></span>
+      </a>`;
+    }).join('');
+  }
+
+  let html = '';
+  NAV_TREE.forEach(item => {
+    if (item.children) {
+      // Parent group with nested sub-groups (e.g., Techniques)
+      const totalCount = item.children.reduce((sum, child) => sum + (groups[child.key] || []).length, 0);
+      html += `<div class="layer-group">
+        <div class="layer-header" onclick="navigateLayer('${item.key}')" data-layer="${item.key}">
+          <span class="arrow" onclick="event.stopPropagation();toggleLayer(this.parentElement)">▶</span>
+          <span class="dot" style="background:${item.color}"></span>
+          <span>${item.label}</span>
+          <span class="count">${totalCount}</span>
+        </div>
+        <div class="layer-entries" data-layer="${item.key}">`;
+      item.children.forEach(child => {
+        const items = groups[child.key] || [];
+        if (items.length === 0) return;
+        html += `<div class="sub-group">
+            <div class="sub-header" onclick="toggleSub(this)">
+              <span class="arrow">▶</span>
+              <span class="dot" style="background:${child.color}"></span>
+              <span>${child.label}</span>
+              <span class="count">${items.length}</span>
+            </div>
+            <div class="sub-entries">
+              ${renderEntryLinks(items)}
+            </div>
+          </div>`;
+      });
+      html += `</div></div>`;
+    } else {
+      // Simple layer group (no children)
+      const items = groups[item.key] || [];
+      if (items.length === 0) return;
+      html += `<div class="layer-group">
+        <div class="layer-header" onclick="navigateLayer('${item.key}')" data-layer="${item.key}">
+          <span class="arrow" onclick="event.stopPropagation();toggleLayer(this.parentElement)">▶</span>
+          <span class="dot" style="background:${item.color}"></span>
+          <span>${item.label}</span>
+          <span class="count">${items.length}</span>
+        </div>
+        <div class="layer-entries" data-layer="${item.key}">
+          ${renderEntryLinks(items)}
+        </div>
+      </div>`;
+    }
+  });
+  // Add evidence legend at bottom of sidebar (Gestalt: same colors = same meaning)
+  html += `<div class="sidebar-legend">
+    <div class="sidebar-legend-title">Evidence level</div>
+    <div class="sidebar-legend-items">
+      <span><span class="entry-link-ev" style="background:#059669;display:inline-block"></span> empirical</span>
+      <span><span class="entry-link-ev" style="background:#7c3aed;display:inline-block"></span> mixed</span>
+      <span><span class="entry-link-ev" style="background:#d97706;display:inline-block"></span> theoretical</span>
+      <span><span class="entry-link-ev" style="background:#6b7280;display:inline-block"></span> practitioner</span>
+    </div>
+  </div>`;
+  document.getElementById('sidebar').innerHTML = html;
+}
+
+function toggleLayer(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+function toggleSub(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+// ── Entry Renderer ─────────────────────────────
+function renderEntry(slug) {
+  const e = entries[slug];
+  if (!e) return;
+
+  currentSlug = slug;
+  window.location.hash = slug;
+
+  // Update sidebar active state
+  document.querySelectorAll('.entry-link').forEach(a => a.classList.remove('active'));
+  const active = document.querySelector(`.entry-link[data-slug="${slug}"]`);
+  if (active) {
+    active.classList.add('active');
+    // Expand parent layer group
+    const group = active.closest('.layer-group');
+    if (group) {
+      group.querySelector('.layer-header').classList.add('open');
+      group.querySelector('.layer-entries').classList.add('open');
+    }
+    // Expand parent sub-group if nested (techniques sub-folders)
+    const subGroup = active.closest('.sub-group');
+    if (subGroup) {
+      subGroup.querySelector('.sub-header').classList.add('open');
+      subGroup.querySelector('.sub-entries').classList.add('open');
+    }
+    active.scrollIntoView({ block: 'nearest' });
+  }
+
+  const color = layerColor(e.layer);
+  const evColor = EVIDENCE_COLORS[e.evidence_level] || '#6b7280';
+
+  // Metadata badges
+  let metaHtml = `<div class="entry-meta">
+    <span class="badge badge-layer" style="background:${color}">${layerLabel(e.layer)}</span>`;
+  if (e.evidence_level) {
+    metaHtml += `<span class="badge badge-evidence" style="color:${evColor};border-color:${evColor}">${e.evidence_level}</span>`;
+  }
+  if (e.status) {
+    metaHtml += `<span class="badge badge-status">${e.status}</span>`;
+  }
+  metaHtml += `</div>`;
+
+  // Render markdown body
+  const bodyHtml = marked.parse(e.body || '');
+
+  // Related entries
+  let relatedHtml = '';
+  const related = Array.isArray(e.related) ? e.related : [];
+  if (related.length > 0) {
+    const chips = related.map(slug => {
+      const rel = entries[slug];
+      if (!rel) return `<span class="related-chip" style="background:#9ca3af">${slug}</span>`;
+      const c = layerColor(rel.layer);
+      return `<a class="related-chip" style="background:${c}" onclick="navigate('${slug}')">${rel.title}</a>`;
+    }).join('');
+    relatedHtml = `<div class="related-section">
+      <h3>Related Entries (${related.length})</h3>
+      <div class="related-chips">${chips}</div>
+    </div>`;
+  }
+
+  document.getElementById('entry-view').innerHTML = metaHtml +
+    `<div class="entry-content">${bodyHtml}</div>` + relatedHtml;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('entry-view').style.display = 'block';
+
+  // Scroll to top
+  document.getElementById('reader').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+// ── Navigation ─────────────────────────────────
+function navigate(slug) {
+  showView('reader');
+  renderEntry(slug);
+  closeSidebar();
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// Navigate to a layer overview page
+function navigateLayer(layerKey) {
+  showView('reader');
+  renderLayerOverview(layerKey);
+  closeSidebar();
+}
+
+function renderLayerOverview(layerKey) {
+  currentSlug = null;
+  window.location.hash = 'layer:' + layerKey;
+
+  document.querySelectorAll('.entry-link').forEach(a => a.classList.remove('active'));
+
+  // Find entries in this layer (or children for parent groups)
+  const navItem = NAV_TREE.find(n => n.key === layerKey);
+  let layerEntries = [];
+  let color = '#6b7280';
+  let label = layerKey;
+
+  if (navItem && navItem.children) {
+    // Parent group (Techniques) — show all children
+    navItem.children.forEach(child => {
+      (entryList.filter(e => e.layer === child.key)).forEach(e => layerEntries.push(e));
+    });
+    color = navItem.color;
+    label = navItem.label;
+  } else if (LAYERS[layerKey]) {
+    layerEntries = entryList.filter(e => e.layer === layerKey);
+    color = layerColor(layerKey);
+    label = layerLabel(layerKey);
+  }
+
+  layerEntries.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+  // Count evidence levels
+  const evCounts = {};
+  layerEntries.forEach(e => {
+    if (e.evidence_level) evCounts[e.evidence_level] = (evCounts[e.evidence_level] || 0) + 1;
+  });
+
+  // Build sub-layer breakdown if parent group
+  let subBreakdown = '';
+  if (navItem && navItem.children) {
+    subBreakdown = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">';
+    navItem.children.forEach(child => {
+      const count = entryList.filter(e => e.layer === child.key).length;
+      subBreakdown += `<span class="badge badge-layer" style="background:${child.color}">${child.label}: ${count}</span>`;
+    });
+    subBreakdown += '</div>';
+  }
+
+  // Entry list grouped by sub-layer if applicable
+  let entryListHtml = '';
+  if (navItem && navItem.children) {
+    navItem.children.forEach(child => {
+      const items = layerEntries.filter(e => e.layer === child.key);
+      if (items.length === 0) return;
+      entryListHtml += `<h3 style="margin-top:20px;font-size:15px;color:${child.color}">${child.label} (${items.length})</h3>`;
+      entryListHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;margin-top:8px">';
+      items.forEach(e => {
+        const evc = EVIDENCE_COLORS[e.evidence_level] || 'transparent';
+        entryListHtml += `<a class="entry-link" style="padding-left:12px;border-left:3px solid ${child.color}" onclick="navigate('${e.slug}')"><span class="entry-link-title">${e.title}</span><span class="entry-link-ev" style="background:${evc}" title="${e.evidence_level||''}"></span></a>`;
+      });
+      entryListHtml += '</div>';
+    });
+  } else {
+    entryListHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;margin-top:12px">';
+    layerEntries.forEach(e => {
+      const evc2 = EVIDENCE_COLORS[e.evidence_level] || 'transparent';
+      entryListHtml += `<a class="entry-link" style="padding-left:12px;border-left:3px solid ${color}" onclick="navigate('${e.slug}')"><span class="entry-link-title">${e.title}</span><span class="entry-link-ev" style="background:${evc2}" title="${e.evidence_level||''}"></span></a>`;
+    });
+    entryListHtml += '</div>';
+  }
+
+  // Evidence distribution
+  let evHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">';
+  Object.entries(evCounts).sort((a,b) => b[1]-a[1]).forEach(([ev, count]) => {
+    const c = EVIDENCE_COLORS[ev] || '#6b7280';
+    evHtml += `<span class="badge badge-evidence" style="color:${c};border-color:${c}">${ev}: ${count}</span>`;
+  });
+  evHtml += '</div>';
+
+  const html = `
+    <div class="entry-meta">
+      <span class="badge badge-layer" style="background:${color}">${label}</span>
+      <span class="badge badge-status">${layerEntries.length} entries</span>
+    </div>
+    <div class="entry-content">
+      <h1>${label}</h1>
+      ${subBreakdown}
+      <h2>Evidence Distribution</h2>
+      ${evHtml}
+      <h2>All Entries</h2>
+      ${entryListHtml}
+    </div>
+  `;
+
+  document.getElementById('entry-view').innerHTML = html;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('entry-view').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+// ── Search ─────────────────────────────────────
+// ── Search (dropdown autocomplete) ─────────────
+function onSearch(query) {
+  const q = query.toLowerCase().trim();
+  const dropdown = document.getElementById('search-dropdown');
+
+  if (q.length < 2) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  const results = entryList.filter(e => {
+    const title = (e.title || '').toLowerCase();
+    const tags = Array.isArray(e.tags) ? e.tags.join(' ').toLowerCase() : '';
+    return title.includes(q) || tags.includes(q);
+  });
+
+  results.sort((a, b) => {
+    const aTitle = (a.title || '').toLowerCase().includes(q) ? 0 : 1;
+    const bTitle = (b.title || '').toLowerCase().includes(q) ? 0 : 1;
+    if (aTitle !== bTitle) return aTitle - bTitle;
+    // Exact start match first
+    const aStart = (a.title || '').toLowerCase().startsWith(q) ? 0 : 1;
+    const bStart = (b.title || '').toLowerCase().startsWith(q) ? 0 : 1;
+    return aStart - bStart || (a.title || '').localeCompare(b.title || '');
+  });
+
+  const top = results.slice(0, 12);
+  if (top.length === 0) {
+    dropdown.innerHTML = '<div class="sd-empty">No entries found</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+  top.forEach((e, i) => {
+    const c = layerColor(e.layer);
+    const evColor = EVIDENCE_COLORS[e.evidence_level] || 'transparent';
+    html += `<div class="sd-item${i === 0 ? ' sd-active' : ''}" data-slug="${e.slug}" onmousedown="selectSearchResult('${e.slug}')">
+      <span class="sr-dot" style="background:${c}"></span>
+      <span class="sr-title">${highlightMatch(e.title, query)}</span>
+      <span class="entry-link-ev" style="background:${evColor}"></span>
+      <span class="sr-layer">${layerLabel(e.layer)}</span>
+    </div>`;
+  });
+  if (results.length > 12) {
+    html += `<div class="sd-more">${results.length - 12} more results...</div>`;
+  }
+
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+}
+
+function highlightMatch(title, query) {
+  const idx = title.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return title;
+  return title.slice(0, idx) + '<strong>' + title.slice(idx, idx + query.length) + '</strong>' + title.slice(idx + query.length);
+}
+
+function selectSearchResult(slug) {
+  document.getElementById('search-box').value = '';
+  document.getElementById('search-dropdown').style.display = 'none';
+  navigate(slug);
+}
+
+// Keyboard navigation in dropdown
+document.getElementById('search-box').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById('search-dropdown');
+  if (dropdown.style.display === 'none') return;
+  const items = dropdown.querySelectorAll('.sd-item');
+  if (items.length === 0) return;
+  let active = dropdown.querySelector('.sd-active');
+  let idx = Array.from(items).indexOf(active);
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (active) active.classList.remove('sd-active');
+    idx = Math.min(idx + 1, items.length - 1);
+    items[idx].classList.add('sd-active');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (active) active.classList.remove('sd-active');
+    idx = Math.max(idx - 1, 0);
+    items[idx].classList.add('sd-active');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (active) selectSearchResult(active.dataset.slug);
+  } else if (e.key === 'Escape') {
+    dropdown.style.display = 'none';
+  }
+});
+
+document.getElementById('search-box').addEventListener('blur', function() {
+  setTimeout(() => { document.getElementById('search-dropdown').style.display = 'none'; }, 150);
+});
+
+// ── Internal Link Interception ─────────────────
+// Markdown body contains links like [Cognitive Load](../principles/cognitive-load.md)
+// Intercept clicks on these and route to #slug instead of fetching the .md file
+document.addEventListener('click', function(e) {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href) return;
+
+  // Match internal .md links (relative paths like ../principles/cognitive-load.md or slug.md)
+  if (href.endsWith('.md') && !href.startsWith('http')) {
+    e.preventDefault();
+    // Extract slug from path: ../principles/cognitive-load.md → cognitive-load
+    const slug = href.replace(/^.*\//, '').replace('.md', '');
+    if (entries[slug]) {
+      navigate(slug);
+    }
+  }
+});
+
+// ── View Toggle ────────────────────────────────
+function showView(view) {
+  ['reader','graph','stats'].forEach(v => {
+    document.getElementById('btn-' + v).classList.toggle('active', view === v);
+  });
+  document.getElementById('reader').style.display = view === 'reader' ? 'block' : 'none';
+  document.getElementById('graph-container').style.display = view === 'graph' ? 'block' : 'none';
+  document.getElementById('stats-container').style.display = view === 'stats' ? 'block' : 'none';
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('search-box').value = '';
+
+  if (view === 'graph' && !graphBuilt) { buildGraph(); graphBuilt = true; }
+  if (view === 'stats' && !statsBuilt) { buildStats(); statsBuilt = true; }
+}
+
+let statsBuilt = false;
+
+// ── Stats View ─────────────────────────────────
+function buildStats() {
+  const container = document.getElementById('stats-container');
+
+  // Compute stats
+  const layerCounts = {};
+  const evidenceCounts = { empirical: 0, mixed: 0, theoretical: 0, practitioner: 0 };
+  const statusCounts = { seed: 0, growing: 0, mature: 0 };
+  const tagCounts = {};
+  let totalRelations = 0;
+  let maxRel = 0;
+
+  entryList.forEach(e => {
+    const l = e.layer;
+    layerCounts[l] = (layerCounts[l] || 0) + 1;
+    if (e.evidence_level && evidenceCounts[e.evidence_level] !== undefined) evidenceCounts[e.evidence_level]++;
+    if (e.status && statusCounts[e.status] !== undefined) statusCounts[e.status]++;
+    const rels = Array.isArray(e.related) ? e.related.length : 0;
+    totalRelations += rels;
+    if (rels > maxRel) maxRel = rels;
+    const tags = Array.isArray(e.tags) ? e.tags : [];
+    tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+  });
+
+  const avgRel = (totalRelations / entryList.length).toFixed(1);
+
+  // Count unique links (undirected)
+  const linkSet = new Set();
+  entryList.forEach(e => {
+    (Array.isArray(e.related) ? e.related : []).forEach(r => {
+      if (entries[r]) linkSet.add([e.slug, r].sort().join('|'));
+    });
+  });
+
+  // Top hubs
+  const hubs = [...entryList].sort((a, b) => {
+    const ar = Array.isArray(b.related) ? b.related.length : 0;
+    const br = Array.isArray(a.related) ? a.related.length : 0;
+    return ar - br;
+  }).slice(0, 15);
+
+  // Top tags
+  const topTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+
+  // Cross-layer connection matrix
+  const layerLinks = {};
+  entryList.forEach(e => {
+    const from = e.layer;
+    (Array.isArray(e.related) ? e.related : []).forEach(r => {
+      const re = entries[r];
+      if (!re) return;
+      const to = re.layer;
+      if (from === to) return;
+      const key = [from, to].sort().join('→');
+      layerLinks[key] = (layerLinks[key] || 0) + 1;
+    });
+  });
+  const topCrossLinks = Object.entries(layerLinks).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // Build HTML
+  const maxLayerCount = Math.max(...Object.values(layerCounts));
+
+  let html = `
+    <div class="stats-header">
+      <h2>Knowledge Base Overview</h2>
+      <p>Descriptive statistics and structure analysis — applying the KB's own visualization and dashboard principles.</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${entryList.length}</div><div class="stat-label">Total entries</div></div>
+      <div class="stat-card"><div class="stat-value">${Object.keys(LAYERS).length}</div><div class="stat-label">Layer paths</div></div>
+      <div class="stat-card"><div class="stat-value">${linkSet.size}</div><div class="stat-label">Unique relationships</div></div>
+      <div class="stat-card"><div class="stat-value">${avgRel}</div><div class="stat-label">Avg. relations per entry</div></div>
+      <div class="stat-card"><div class="stat-value">${Object.keys(tagCounts).length}</div><div class="stat-label">Unique tags</div></div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Entries by Layer</h3>
+      ${Object.keys(LAYERS).sort((a,b) => (layerCounts[b]||0) - (layerCounts[a]||0)).map(l => {
+        const count = layerCounts[l] || 0;
+        const pct = Math.round(count / maxLayerCount * 100);
+        const color = layerColor(l);
+        return `<div class="bar-row">
+          <span class="bar-label">${layerLabel(l)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}">${count > 3 ? count : ''}</div></div>
+          <span class="bar-count">${count}</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="stats-section">
+      <h3>Evidence Level Distribution</h3>
+      ${Object.entries(evidenceCounts).sort((a,b) => b[1] - a[1]).map(([ev, count]) => {
+        const pct = Math.round(count / entryList.length * 100);
+        const color = EVIDENCE_COLORS[ev] || '#6b7280';
+        return `<div class="bar-row">
+          <span class="bar-label">${ev}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}">${count}</div></div>
+          <span class="bar-count">${pct}%</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="stats-two-col">
+      <div class="stats-section">
+        <h3>Most Connected Entries (Hubs)</h3>
+        <ul class="hub-list">
+          ${hubs.map(e => {
+            const rels = Array.isArray(e.related) ? e.related.length : 0;
+            return `<li onclick="navigate('${e.slug}')">
+              <span class="hub-dot" style="background:${layerColor(e.layer)}"></span>
+              <span>${e.title}</span>
+              <span class="hub-count">${rels}</span>
+            </li>`;
+          }).join('')}
+        </ul>
+      </div>
+
+      <div class="stats-section">
+        <h3>Top Tags</h3>
+        <ul class="hub-list">
+          ${topTags.map(([tag, count]) => `<li>
+            <span class="hub-dot" style="background:var(--text-muted)"></span>
+            <span>${tag}</span>
+            <span class="hub-count">${count}</span>
+          </li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>Strongest Cross-Layer Connections</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Which layers link to each other most heavily.</p>
+      ${topCrossLinks.map(([key, count]) => {
+        const parts = key.split('→');
+        return `<div class="bar-row">
+          <span class="bar-label" style="width:240px">${layerLabel(parts[0])} ↔ ${layerLabel(parts[1])}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / topCrossLinks[0][1] * 100)}%;background:#7c3aed">${count}</div></div>
+          <span class="bar-count">${count}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// ── Graph View (D3 Force-Directed + Interactive) ──
+function buildGraph() {
+  const container = document.getElementById('graph-container');
+  const svgEl = d3.select('#graph-container svg');
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  const tooltip = document.getElementById('tooltip');
+
+  // Build legend with toggle filters
+  const legendEl = document.getElementById('graph-legend');
+  const hiddenLayers = new Set();
+  let legendHtml = '';
+  NAV_TREE.forEach(item => {
+    if (item.children) {
+      item.children.forEach(child => {
+        legendHtml += `<span class="legend-item" data-layer="${child.key}" onclick="toggleGraphLayer(this,'${child.key}')"><span class="ldot" style="background:${child.color}"></span>${child.label}</span>`;
+      });
+    } else {
+      legendHtml += `<span class="legend-item" data-layer="${item.key}" onclick="toggleGraphLayer(this,'${item.key}')"><span class="ldot" style="background:${item.color}"></span>${item.label}</span>`;
+    }
+  });
+  legendEl.innerHTML = legendHtml;
+
+  // Build nodes and links
+  const nodes = entryList.map(e => ({
+    id: e.slug, title: e.title, layer: e.layer,
+    color: layerColor(e.layer),
+    relCount: Array.isArray(e.related) ? e.related.length : 0
+  }));
+
+  const nodeSet = new Set(nodes.map(n => n.id));
+  const links = [];
+  entryList.forEach(e => {
+    (Array.isArray(e.related) ? e.related : []).forEach(r => {
+      if (nodeSet.has(r) && e.slug < r) links.push({ source: e.slug, target: r });
+    });
+  });
+
+  // Create zoom group
+  const g = svgEl.append('g');
+
+  const simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(50).strength(0.2))
+    .force('charge', d3.forceManyBody().strength(-60))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => 5 + Math.min(d.relCount, 10)));
+
+  const link = g.append('g').selectAll('line').data(links).join('line').attr('class', 'link');
+
+  const node = g.append('g').selectAll('g').data(nodes).join('g').attr('class', 'node')
+    .call(d3.drag()
+      .on('start', (ev, d) => { if (!ev.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
+      .on('end', (ev, d) => { if (!ev.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.append('circle')
+    .attr('r', d => 4 + Math.min(d.relCount * 0.8, 10))
+    .attr('fill', d => d.color);
+
+  // Labels for hub nodes (>8 connections)
+  node.filter(d => d.relCount >= 8).append('text')
+    .attr('dy', d => -(6 + Math.min(d.relCount * 0.8, 10)))
+    .text(d => d.title.length > 25 ? d.title.slice(0, 23) + '…' : d.title);
+
+  // Click: highlight neighbors
+  let selectedNode = null;
+  node.on('click', (ev, d) => {
+    ev.stopPropagation();
+    if (selectedNode === d.id) {
+      // Double-click to navigate
+      navigate(d.id);
+      return;
+    }
+    selectedNode = d.id;
+    const neighbors = new Set([d.id]);
+    links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === d.id) neighbors.add(tid);
+      if (tid === d.id) neighbors.add(sid);
+    });
+    node.classed('dimmed', n => !neighbors.has(n.id));
+    node.classed('highlighted', n => n.id === d.id);
+    link.classed('dimmed', l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return !neighbors.has(sid) || !neighbors.has(tid);
+    });
+    const entry = entries[d.id];
+    const rels = Array.isArray(entry?.related) ? entry.related.length : 0;
+    document.getElementById('graph-info').textContent = `${d.title} — ${rels} connections. Click again to open. Click background to deselect.`;
+  });
+
+  // Descriptions for status and evidence level
+  const STATUS_DESC = {
+    'seed': 'Seed — stub or rough notes',
+    'growing': 'Growing — real content, not yet complete',
+    'mature': 'Mature — considered solid'
+  };
+  const EVIDENCE_DESC = {
+    'empirical': 'Empirical — supported by experiments, meta-analyses, validated instruments',
+    'mixed': 'Mixed — substantial theory plus meaningful empirical research',
+    'theoretical': 'Theoretical — primarily conceptual, limited direct hypothesis testing',
+    'practitioner': 'Practitioner — originated in practice, limited rigorous validation'
+  };
+
+  // Hover tooltip
+  node.on('mouseover', (ev, d) => {
+    tooltip.style.display = 'block';
+    const entry = entries[d.id];
+    const rels = Array.isArray(entry?.related) ? entry.related.length : 0;
+    const evDesc = EVIDENCE_DESC[entry?.evidence_level] || '';
+    const stDesc = STATUS_DESC[entry?.status] || '';
+    const tags = Array.isArray(entry?.tags) ? entry.tags.slice(0, 5).join(', ') : '';
+    let html = `<strong>${d.title}</strong><br>`;
+    html += `<span style="color:${d.color}">●</span> ${layerLabel(d.layer)} · ${rels} connections<br>`;
+    if (evDesc) html += `<span style="opacity:0.8">${evDesc}</span><br>`;
+    if (stDesc) html += `<span style="opacity:0.8">${stDesc}</span>`;
+    if (tags) html += `<br><span style="opacity:0.6;font-size:10px">Tags: ${tags}</span>`;
+    tooltip.innerHTML = html;
+    tooltip.style.left = (ev.clientX + 14) + 'px';
+    tooltip.style.top = (ev.clientY - 10) + 'px';
+  }).on('mousemove', (ev) => {
+    tooltip.style.left = (ev.clientX + 14) + 'px';
+    tooltip.style.top = (ev.clientY - 10) + 'px';
+  }).on('mouseout', () => { tooltip.style.display = 'none'; });
+
+  // Click background to deselect
+  svgEl.on('click', () => {
+    selectedNode = null;
+    node.classed('dimmed', false).classed('highlighted', false);
+    link.classed('dimmed', false);
+    document.getElementById('graph-info').textContent = 'Click a node to see connections. Click again to open. Drag to rearrange.';
+  });
+
+  simulation.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  // Zoom
+  svgEl.call(d3.zoom().scaleExtent([0.15, 5]).on('zoom', (ev) => { g.attr('transform', ev.transform); }));
+
+  // Layer filter toggle
+  window.toggleGraphLayer = function(el, layerKey) {
+    el.classList.toggle('dimmed');
+    if (hiddenLayers.has(layerKey)) { hiddenLayers.delete(layerKey); } else { hiddenLayers.add(layerKey); }
+    node.classed('dimmed', d => hiddenLayers.has(d.layer));
+    link.classed('dimmed', l => {
+      const sl = typeof l.source === 'object' ? l.source.layer : nodes.find(n => n.id === l.source)?.layer;
+      const tl = typeof l.target === 'object' ? l.target.layer : nodes.find(n => n.id === l.target)?.layer;
+      return hiddenLayers.has(sl) || hiddenLayers.has(tl);
+    });
+  };
+}
+
+// ── Hash Router ────────────────────────────────
+function handleHash() {
+  const hash = window.location.hash.slice(1);
+  if (hash.startsWith('layer:')) {
+    showView('reader');
+    renderLayerOverview(hash.replace('layer:', ''));
+  } else if (hash && entries[hash]) {
+    showView('reader');
+    renderEntry(hash);
+  }
+}
+window.addEventListener('hashchange', handleHash);
+
+// ── Init ───────────────────────────────────────
+async function init() {
+  await loadAllEntries();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('entry-count').innerHTML = `<span>· ${entryList.length} entries</span>`;
+  buildSidebar();
+
+  // Stats as homepage, unless a hash is present
+  const hash = window.location.hash.slice(1);
+  if (hash && entries[hash]) {
+    showView('reader');
+    renderEntry(hash);
+  } else {
+    showView('stats');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
